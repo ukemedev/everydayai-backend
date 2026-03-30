@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from routes import auth_routes, agent_routes, knowledge_routes, chat_routes
+from database import engine
 from dotenv import load_dotenv
+from sqlalchemy import text
 import os
 
 load_dotenv()
@@ -28,13 +30,32 @@ app.include_router(agent_routes.router)
 app.include_router(knowledge_routes.router)
 app.include_router(chat_routes.router)
 
+
+@app.on_event("startup")
+def run_safe_migrations():
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR DEFAULT 'free'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS message_count_reset_at TIMESTAMP",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+
 @app.get("/")
 def root():
     return {"message": "EverydayAI Backend is running"}
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @app.get("/widget.js")
 def serve_widget():
