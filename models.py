@@ -10,6 +10,9 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     openai_api_key = Column(String, nullable=True)
+    plan = Column(String, default="free")
+    message_count = Column(Integer, default=0)
+    message_count_reset_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     agents = relationship("Agent", back_populates="owner")
