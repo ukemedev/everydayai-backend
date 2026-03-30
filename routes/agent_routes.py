@@ -10,6 +10,14 @@ import secrets
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
+PLAN_AGENT_LIMITS = {
+    "free": 1,
+    "starter": 5,
+    "pro": 12,
+    "agency": None,
+}
+
+
 class AgentCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -22,6 +30,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = None
     model: Optional[str] = None
 
+
 def get_openai_client(user: models.User):
     if not user.openai_api_key:
         raise HTTPException(
@@ -30,12 +39,26 @@ def get_openai_client(user: models.User):
         )
     return OpenAI(api_key=user.openai_api_key)
 
+
 @router.post("/")
 def create_agent(
     request: AgentCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    plan = current_user.plan or "free"
+    agent_limit = PLAN_AGENT_LIMITS.get(plan)
+
+    if agent_limit is not None:
+        agent_count = db.query(models.Agent).filter(
+            models.Agent.owner_id == current_user.id
+        ).count()
+        if agent_count >= agent_limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"PLAN_LIMIT: You've reached the {plan} plan limit of {agent_limit} agent{'s' if agent_limit != 1 else ''}. Please upgrade to create more."
+            )
+
     client = get_openai_client(current_user)
 
     assistant = client.beta.assistants.create(
@@ -68,6 +91,7 @@ def create_agent(
     db.refresh(agent)
     return agent
 
+
 @router.get("/")
 def list_agents(
     db: Session = Depends(get_db),
@@ -77,6 +101,7 @@ def list_agents(
         models.Agent.owner_id == current_user.id
     ).all()
     return agents
+
 
 @router.get("/{agent_id}")
 def get_agent(
@@ -91,6 +116,7 @@ def get_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return agent
+
 
 @router.put("/{agent_id}")
 def update_agent(
@@ -119,6 +145,7 @@ def update_agent(
     db.refresh(agent)
     return agent
 
+
 @router.delete("/{agent_id}")
 def delete_agent(
     agent_id: int,
@@ -143,6 +170,7 @@ def delete_agent(
     db.delete(agent)
     db.commit()
     return {"message": "Agent deleted successfully"}
+
 
 @router.post("/{agent_id}/publish")
 def publish_agent(
