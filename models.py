@@ -59,3 +59,16 @@ class Conversation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     agent = relationship("Agent", back_populates="conversations")
+
+
+class WhatsappDeployment(Base):
+    __tablename__ = "whatsapp_deployments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False)
+    phone_number_id = Column(String, nullable=False)
+    phone_number = Column(String, nullable=False)
+    whatsapp_token = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    agent = relationship("Agent")

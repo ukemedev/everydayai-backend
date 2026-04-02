@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routes import auth_routes, agent_routes, knowledge_routes, chat_routes
+from routes import auth_routes, agent_routes, knowledge_routes, chat_routes, whatsapp
 from database import engine
 from dotenv import load_dotenv
 from sqlalchemy import text
@@ -29,6 +29,7 @@ app.include_router(auth_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(knowledge_routes.router)
 app.include_router(chat_routes.router)
+app.include_router(whatsapp.router)
 
 
 @app.on_event("startup")
@@ -37,6 +38,16 @@ def run_safe_migrations():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR DEFAULT 'free'",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS message_count_reset_at TIMESTAMP",
+        """
+        CREATE TABLE IF NOT EXISTS whatsapp_deployments (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id),
+            phone_number_id VARCHAR NOT NULL,
+            phone_number VARCHAR NOT NULL,
+            whatsapp_token VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
     ]
     with engine.connect() as conn:
         for sql in migrations:
